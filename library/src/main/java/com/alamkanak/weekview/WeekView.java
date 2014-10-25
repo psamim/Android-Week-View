@@ -94,6 +94,8 @@ public class WeekView extends View {
     private int mDayNameLength = LENGTH_LONG;
     private int mOverlappingEventGap = 0;
     private int mEventMarginVertical = 0;
+    private int mMinHour = 0;
+    private int mMaxHour = 23;
 
     // Listeners.
     private EventClickListener mEventClickListener;
@@ -135,7 +137,7 @@ public class WeekView extends View {
                 mScroller.fling((int) mCurrentOrigin.x, 0, (int) velocityX, 0, Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 0);
             }
             else if (mCurrentFlingDirection == Direction.VERTICAL){
-                mScroller.fling(0, (int) mCurrentOrigin.y, 0, (int) velocityY, 0, 0, (int) -(mHourHeight * 24 + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight()), 0);
+                mScroller.fling(0, (int) mCurrentOrigin.y, 0, (int) velocityY, 0, 0, (int) -(mHourHeight * getNumberOfVisibleHours() + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight()), 0);
             }
 
             ViewCompat.postInvalidateOnAnimation(WeekView.this);
@@ -324,15 +326,16 @@ public class WeekView extends View {
         // Do not let the view go above/below the limit due to scrolling. Set the max and min limit of the scroll.
         if (mCurrentScrollDirection == Direction.VERTICAL) {
             if (mCurrentOrigin.y - mDistanceY > 0) mCurrentOrigin.y = 0;
-            else if (mCurrentOrigin.y - mDistanceY < -(mHourHeight * 24 + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight())) mCurrentOrigin.y = -(mHourHeight * 24 + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight());
+            else if (mCurrentOrigin.y - mDistanceY < -(mHourHeight * getNumberOfVisibleHours() + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight())) mCurrentOrigin.y = -(mHourHeight * getNumberOfVisibleHours() + mHeaderTextHeight + mHeaderRowPadding * 2 - getHeight());
             else mCurrentOrigin.y -= mDistanceY;
         }
 
         // Draw the background color for the header column.
         canvas.drawRect(0, mHeaderTextHeight + mHeaderRowPadding * 2, mHeaderColumnWidth, getHeight(), mHeaderColumnBackgroundPaint);
 
-        for (int i = 0; i < 24; i++) {
-            float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * i + mHeaderMarginBottom;
+        for (int i = mMinHour; i <= mMaxHour; i++) {
+            int hourOffset = i - mMinHour;
+            float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourOffset + mHeaderMarginBottom;
 
             // Draw the text if its y position is not outside of the visible area. The pivot point of the text is the point at the bottom-right corner.
             if (top < getHeight()) canvas.drawText(getTimeString(i), mTimeTextWidth + mHeaderColumnPadding, top + mTimeTextHeight, mTimeTextPaint);
@@ -402,7 +405,8 @@ public class WeekView extends View {
 
             // Prepare the separator lines for hours.
             int i = 0;
-            for (int hourNumber = 0; hourNumber < 24; hourNumber++) {
+            int range = getNumberOfVisibleHours();
+            for (int hourNumber = 0; hourNumber < range; hourNumber++) {
                 float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourNumber + mTimeTextHeight/2 + mHeaderMarginBottom;
                 if (top > mHeaderTextHeight + mHeaderRowPadding * 2 + mTimeTextHeight/2 + mHeaderMarginBottom - mHourSeparatorHeight && top < getHeight() && startPixel + mWidthPerDay - start > 0){
                     hourLines[i * 4] = start;
@@ -449,19 +453,26 @@ public class WeekView extends View {
      * @param canvas The canvas to draw upon.
      */
     private void drawEvents(Calendar date, float startFromPixel, Canvas canvas) {
+        float visibleHours = (float)getNumberOfVisibleHours();
+
         if (mEventRects != null && mEventRects.size() > 0) {
             for (int i = 0; i < mEventRects.size(); i++) {
                 if (isSameDay(mEventRects.get(i).event.getStartTime(), date)) {
 
+                    // Calculate top and bottom positions as percentages of total day display range
+                    float topFraction = (mEventRects.get(i).top - (mMinHour*60)) / (visibleHours*60);
+                    float bottomFraction = (mEventRects.get(i).bottom - (mMinHour*60)) / (visibleHours*60);
+                    if (topFraction < 0 || bottomFraction > 1)
+                        continue;
+
                     // Calculate top.
-                    float top = mHourHeight * 24 * mEventRects.get(i).top / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 + mEventMarginVertical;
+                    float top = mHourHeight * visibleHours * topFraction + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 + mEventMarginVertical;
                     float originalTop = top;
                     if (top < mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2)
                         top = mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2;
 
                     // Calculate bottom.
-                    float bottom = mEventRects.get(i).bottom;
-                    bottom = mHourHeight * 24 * bottom / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 - mEventMarginVertical;
+                    float bottom = mHourHeight * visibleHours * bottomFraction + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 - mEventMarginVertical;
 
                     // Calculate left and right.
                     float left = startFromPixel + mEventRects.get(i).left * mWidthPerDay;
@@ -794,6 +805,13 @@ public class WeekView extends View {
         mEventRects.addAll(newEvents);
     }
 
+    /**
+     * @return The number of hour dividers that will appear on the calendar.
+     */
+    private int getNumberOfVisibleHours() {
+        return mMaxHour - mMinHour + 1;
+    }
+
 
     /////////////////////////////////////////////////////////////////
     //
@@ -1063,6 +1081,42 @@ public class WeekView extends View {
      */
     public void setEventMarginVertical(int eventMarginVertical) {
         this.mEventMarginVertical = eventMarginVertical;
+        invalidate();
+    }
+
+    public int getMinHour() {
+        return mMinHour;
+    }
+
+    /**
+     * Set the first hour that will render on the time axis for each day. Events that begin before
+     * this time will not be displayed.
+     *
+     * @param minHour An hour number betwen 0 and 23 (0 = midnight)
+     */
+    public void setMinHour(int minHour) {
+        if (minHour < 0 || minHour > mMaxHour) {
+            throw new IllegalArgumentException("minHour cannot be less than zero or greater than the value of maxHour");
+        }
+        mMinHour = minHour;
+        invalidate();
+    }
+
+    public int getMaxHour() {
+        return mMaxHour;
+    }
+
+    /**
+     * Set the last hour that will render on the time axis for each day. Events that end after this
+     * time will not be displayed.
+     *
+     * @param maxHour An hour number betwen 0 and 23 (0 = midnight)
+     */
+    public void setMaxHour(int maxHour) {
+        if (maxHour > 23 || maxHour < mMinHour) {
+            throw new IllegalArgumentException("maxHour cannot be greater than 23 or less than the value of minHour");
+        }
+        mMaxHour = maxHour;
         invalidate();
     }
 
