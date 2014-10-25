@@ -97,6 +97,9 @@ public class WeekView extends View {
     private int mMinHour = 0;
     private int mMaxHour = 23;
 
+    // Formatters.
+    private DayHeaderFormatter mDayHeaderFormatter;
+
     // Listeners.
     private EventClickListener mEventClickListener;
     private EventLongPressListener mEventLongPressListener;
@@ -439,7 +442,11 @@ public class WeekView extends View {
             boolean sameDay = isSameDay(day, mToday);
 
             // Draw the day labels.
-            String dayLabel = String.format("%s %d/%02d", getDayName(day), day.get(Calendar.MONTH) + 1, day.get(Calendar.DAY_OF_MONTH));
+            String dayLabel;
+            if (mDayHeaderFormatter == null)
+                dayLabel = String.format("%s %d/%02d", getDayName(day), day.get(Calendar.MONTH) + 1, day.get(Calendar.DAY_OF_MONTH));
+            else
+                dayLabel = mDayHeaderFormatter.getDayHeaderText(day);
             canvas.drawText(dayLabel, startPixel + mWidthPerDay / 2, mHeaderTextHeight + mHeaderRowPadding, sameDay ? mTodayHeaderTextPaint : mHeaderTextPaint);
             startPixel += mWidthPerDay + mColumnGap;
         }
@@ -1120,6 +1127,14 @@ public class WeekView extends View {
         invalidate();
     }
 
+    public DayHeaderFormatter getDayHeaderFormatter() {
+        return mDayHeaderFormatter;
+    }
+
+    public void setDayHeaderFormatter(DayHeaderFormatter dayHeaderFormatter) {
+        mDayHeaderFormatter = dayHeaderFormatter;
+    }
+
     /////////////////////////////////////////////////////////////////
     //
     //      Functions related to scrolling.
@@ -1229,6 +1244,10 @@ public class WeekView extends View {
 
     public interface EventLongPressListener {
         public void onEventLongPress(WeekViewEvent event, RectF eventRect);
+    }
+
+    public interface DayHeaderFormatter {
+        public String getDayHeaderText(Calendar day);
     }
 
     /////////////////////////////////////////////////////////////////
