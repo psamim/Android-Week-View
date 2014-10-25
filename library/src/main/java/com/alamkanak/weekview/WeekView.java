@@ -46,6 +46,8 @@ public class WeekView extends View {
     private Calendar mHomeDate;
     private Calendar mMinDate;
     private Calendar mMaxDate;
+    private int mMinHour = 0;
+    private int mMaxHour = 23;
     private Paint mTimeTextPaint;
     private float mTimeTextWidth;
     private float mTimeTextHeight;
@@ -376,8 +378,9 @@ public class WeekView extends View {
         // Draw the background color for the header column.
         canvas.drawRect(0, mHeaderTextHeight + mHeaderRowPadding * 2, mHeaderColumnWidth, getHeight(), mHeaderColumnBackgroundPaint);
 
-        for (int i = 0; i < 24; i++) {
-            float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * i + mHeaderMarginBottom;
+        for (int i = mMinHour; i <= mMaxHour; i++) {
+            int hourOffset = i - mMinHour;
+            float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourOffset + mHeaderMarginBottom;
 
             // Draw the text if its y position is not outside of the visible area. The pivot point of the text is the point at the bottom-right corner.
             String time = getDateTimeInterpreter().interpretTime(i);
@@ -475,7 +478,8 @@ public class WeekView extends View {
 
             // Prepare the separator lines for hours.
             int i = 0;
-            for (int hourNumber = 0; hourNumber < 24; hourNumber++) {
+            int range = getNumberOfVisibleHours();
+            for (int hourNumber = 0; hourNumber < range; hourNumber++) {
                 float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourNumber + mTimeTextHeight/2 + mHeaderMarginBottom;
                 if (top > mHeaderTextHeight + mHeaderRowPadding * 2 + mTimeTextHeight/2 + mHeaderMarginBottom - mHourSeparatorHeight && top < getHeight() && startPixel + mWidthPerDay - start > 0){
                     hourLines[i * 4] = start;
@@ -559,19 +563,26 @@ public class WeekView extends View {
      * @param canvas The canvas to draw upon.
      */
     private void drawEvents(Calendar date, float startFromPixel, Canvas canvas) {
+        float visibleHours = (float)getNumberOfVisibleHours();
+
         if (mEventRects != null && mEventRects.size() > 0) {
             for (int i = 0; i < mEventRects.size(); i++) {
                 if (isSameDay(mEventRects.get(i).event.getStartTime(), date)) {
 
+                    // Calculate top and bottom positions as percentages of total day display range
+                    float topFraction = (mEventRects.get(i).top - (mMinHour*60)) / (visibleHours*60);
+                    float bottomFraction = (mEventRects.get(i).bottom - (mMinHour*60)) / (visibleHours*60);
+                    if (topFraction < 0 || bottomFraction > 1)
+                        continue;
+
                     // Calculate top.
-                    float top = mHourHeight * 24 * mEventRects.get(i).top / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 + mEventMarginVertical;
+                    float top = mHourHeight * visibleHours * topFraction + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 + mEventMarginVertical;
                     float originalTop = top;
                     if (top < mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2)
                         top = mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2;
 
                     // Calculate bottom.
-                    float bottom = mEventRects.get(i).bottom;
-                    bottom = mHourHeight * 24 * bottom / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 - mEventMarginVertical;
+                    float bottom = mHourHeight * visibleHours * bottomFraction + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 - mEventMarginVertical;
 
                     // Calculate left and right.
                     float left = startFromPixel + mEventRects.get(i).left * mWidthPerDay;
@@ -953,6 +964,12 @@ public class WeekView extends View {
         super.invalidate();
         mAreDimensionsInvalid = true;
     }
+    /**
+     * @return The number of hour dividers that will appear on the calendar.
+     */
+    private int getNumberOfVisibleHours() {
+        return mMaxHour - mMinHour + 1;
+    }
 
     /**
      * Recalculate a suitable home date.
@@ -997,11 +1014,37 @@ public class WeekView extends View {
         return - dateDifference * (mWidthPerDay + mColumnGap);
     }
 
+    /**
+     * Find the scroll offset that would position the given time at the top of the view.
+     *
+     * @param hour Hour of day value (0-23)
+     * @param minute Minute value (0-59)
+     * @return The Y scroll offset in pixels
+     */
+    private float getYOriginForTime(int hour, int minute) {
+        return getYOriginForHour(
+            (float)hour + ((float)minute / (float)60)
+        );
+    }
+
+    /**
+     * Find the scroll offset that would position the given time at the top of the view.
+     *
+     * @param hour Hour of day value (0-23)
+     * @return The Y scroll offset in pixels
+     */
+    private float getYOriginForHour(float hour) {
+        return -(
+            (float)mHourHeight * (hour - mMinHour)
+        );
+    }
+
     private float getYMinLimit() {
-        return -(mHourHeight * 24
+        return Math.min(0f,
+            -(mHourHeight * getNumberOfVisibleHours()
                 + mHeaderTextHeight
                 + mHeaderRowPadding * 2
-                - getHeight());
+                - getHeight()));
     }
 
     private float getYMaxLimit() {
@@ -1469,6 +1512,42 @@ public class WeekView extends View {
         invalidate();
     }
 
+    public int getMinHour() {
+        return mMinHour;
+    }
+
+    /**
+     * Set the first hour that will render on the time axis for each day. Events that begin before
+     * this time will not be displayed.
+     *
+     * @param minHour An hour number betwen 0 and 23 (0 = midnight)
+     */
+    public void setMinHour(int minHour) {
+        if (minHour < 0 || minHour > mMaxHour) {
+            throw new IllegalArgumentException("minHour cannot be less than zero or greater than the value of maxHour");
+        }
+        mMinHour = minHour;
+        invalidate();
+    }
+
+    public int getMaxHour() {
+        return mMaxHour;
+    }
+
+    /**
+     * Set the last hour that will render on the time axis for each day. Events that end after this
+     * time will not be displayed.
+     *
+     * @param maxHour An hour number betwen 0 and 23 (0 = midnight)
+     */
+    public void setMaxHour(int maxHour) {
+        if (maxHour > 23 || maxHour < mMinHour) {
+            throw new IllegalArgumentException("maxHour cannot be greater than 23 or less than the value of minHour");
+        }
+        mMaxHour = maxHour;
+        invalidate();
+    }
+
     /////////////////////////////////////////////////////////////////
     //
     //      Functions related to scrolling.
@@ -1575,7 +1654,7 @@ public class WeekView extends View {
 
     /**
      * Vertically scroll to a specific hour in the week view.
-     * @param hour The hour to scroll to in 24-hour format. Supported values are 0-24.
+     * @param hour The hour to scroll to in 24-hour format. Supported values are 0-23.
      */
     public void goToHour(double hour){
         if (mAreDimensionsInvalid) {
@@ -1583,16 +1662,16 @@ public class WeekView extends View {
             return;
         }
 
-        int verticalOffset = 0;
-        if (hour > 24)
-            verticalOffset = mHourHeight * 24;
-        else if (hour > 0)
-            verticalOffset = (int) (mHourHeight * hour);
+        float offset = getYOriginForHour((float)hour);
 
-        if (verticalOffset > mHourHeight * 24 - getHeight() + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom)
-            verticalOffset = (int)(mHourHeight * 24 - getHeight() + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom);
+        // Clamp the new offset if it would fall outside the scroll limits
+        float yMin = getYMinLimit(), yMax = getYMaxLimit();
+        if (offset < yMin)
+            offset = yMin;
+        if (offset > yMax)
+            offset = yMax;
 
-        mCurrentOrigin.y = -verticalOffset;
+        mCurrentOrigin.y = offset;
         invalidate();
     }
 
@@ -1601,7 +1680,7 @@ public class WeekView extends View {
      * @return The first hour that is visible.
      */
     public double getFirstVisibleHour(){
-        return -mCurrentOrigin.y / mHourHeight;
+        return (-mCurrentOrigin.y / mHourHeight) + mMinHour;
     }
 
     /**
