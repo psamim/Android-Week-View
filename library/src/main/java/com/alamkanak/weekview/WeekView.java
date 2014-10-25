@@ -1106,6 +1106,7 @@ public class WeekView extends View {
             throw new IllegalArgumentException("minHour cannot be less than zero or greater than the value of maxHour");
         }
         mMinHour = minHour;
+        mCurrentOrigin.y = 0;
         invalidate();
     }
 
@@ -1124,6 +1125,7 @@ public class WeekView extends View {
             throw new IllegalArgumentException("maxHour cannot be greater than 23 or less than the value of minHour");
         }
         mMaxHour = maxHour;
+        mCurrentOrigin.y = 0;
         invalidate();
     }
 
