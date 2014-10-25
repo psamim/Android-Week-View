@@ -12,6 +12,7 @@ public class WeekViewEvent {
     private Calendar mEndTime;
     private String mName;
     private int mColor;
+    private int mStrokeColor;
 
     public WeekViewEvent(){
 
@@ -95,6 +96,14 @@ public class WeekViewEvent {
 
     public void setColor(int color) {
         this.mColor = color;
+    }
+
+    public int getStrokeColor() {
+        return mStrokeColor;
+    }
+
+    public void setStrokeColor(int strokeColor) {
+        mStrokeColor = strokeColor;
     }
 
     public long getId() {

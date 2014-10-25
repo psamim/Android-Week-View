@@ -60,6 +60,7 @@ public class WeekView extends View {
     private Paint mTodayBackgroundPaint;
     private Paint mTodayHeaderTextPaint;
     private Paint mEventBackgroundPaint;
+    private Paint mEventStrokePaint;
     private float mHeaderColumnWidth;
     private List<EventRect> mEventRects;
     private TextPaint mEventTextPaint;
@@ -91,6 +92,7 @@ public class WeekView extends View {
     private int mEventPadding = 8;
     private int mHeaderColumnBackgroundColor = Color.WHITE;
     private int mDefaultEventColor;
+    private int mDefaultEventStrokeColor;
     private boolean mIsFirstDraw = true;
     private int mDayNameLength = LENGTH_LONG;
     private int mOverlappingEventGap = 0;
@@ -309,8 +311,16 @@ public class WeekView extends View {
         mTodayHeaderTextPaint.setColor(mTodayHeaderTextColor);
 
         // Prepare event background color.
+        mDefaultEventColor = Color.parseColor("#9fc6e7");
         mEventBackgroundPaint = new Paint();
-        mEventBackgroundPaint.setColor(Color.rgb(174, 208, 238));
+        mEventBackgroundPaint.setColor(mDefaultEventColor);
+
+        // Prepare event border paint.
+        mDefaultEventStrokeColor = Color.argb(0, 0, 0, 0); //default to invisible
+        mEventStrokePaint = new Paint();
+        mEventStrokePaint.setStyle(Paint.Style.STROKE);
+        mEventStrokePaint.setStrokeWidth(2);
+        mEventStrokePaint.setColor(mDefaultEventStrokeColor);
 
         // Prepare header column background color.
         mHeaderColumnBackgroundPaint = new Paint();
@@ -321,9 +331,6 @@ public class WeekView extends View {
         mEventTextPaint.setStyle(Paint.Style.FILL);
         mEventTextPaint.setColor(mEventTextColor);
         mEventTextPaint.setTextSize(mEventTextSize);
-
-        // Set default event color.
-        mDefaultEventColor = Color.parseColor("#9fc6e7");
     }
 
     @Override
@@ -510,9 +517,20 @@ public class WeekView extends View {
                             eventRectF.top < getHeight() &&
                             left < right
                             ) {
+
                         mEventRects.get(i).rectF = eventRectF;
+
+                        //Background
                         mEventBackgroundPaint.setColor(mEventRects.get(i).event.getColor() == 0 ? mDefaultEventColor : mEventRects.get(i).event.getColor());
-                        canvas.drawRect(mEventRects.get(i).rectF, mEventBackgroundPaint);
+                        canvas.drawRect(eventRectF, mEventBackgroundPaint);
+
+                        //Border
+                        RectF strokeRectF = new RectF(eventRectF);
+                        strokeRectF.inset(mEventStrokePaint.getStrokeWidth(), mEventStrokePaint.getStrokeWidth());
+                        mEventStrokePaint.setColor(mEventRects.get(i).event.getStrokeColor() == 0 ? mDefaultEventStrokeColor : mEventRects.get(i).event.getStrokeColor());
+                        canvas.drawRect(strokeRectF, mEventStrokePaint);
+
+                        //Text
                         drawText(mEventRects.get(i).event.getName(), mEventRects.get(i).rectF, canvas, originalTop, originalLeft);
                     }
                     else
@@ -1097,6 +1115,15 @@ public class WeekView extends View {
 
     public void setDefaultEventColor(int defaultEventColor) {
         mDefaultEventColor = defaultEventColor;
+        invalidate();
+    }
+
+    public int getDefaultEventStrokeColor() {
+        return mDefaultEventStrokeColor;
+    }
+
+    public void setDefaultEventStrokeColor(int defaultEventStrokeColor) {
+        mDefaultEventStrokeColor = defaultEventStrokeColor;
         invalidate();
     }
 
