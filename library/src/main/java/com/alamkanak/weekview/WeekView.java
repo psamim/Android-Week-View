@@ -43,6 +43,7 @@ public class WeekView extends View {
     private Calendar mHomeDate;
     private Calendar mMinDate;
     private Calendar mMaxDate;
+    private Calendar mScrollToDate;
     private Paint mTimeTextPaint;
     private float mTimeTextWidth;
     private float mTimeTextHeight;
@@ -376,6 +377,15 @@ public class WeekView extends View {
                 mCurrentOrigin.x += (mWidthPerDay + mColumnGap) * difference;
             }
             mIsFirstDraw = false;
+        }
+
+        // If there is a pending programatic scroll, apply it
+        if (mScrollToDate != null) {
+            float newX = getXOriginForDate(mScrollToDate);
+            if (newX >= getXMinLimit() && newX <= getXMaxLimit()) {
+                mCurrentOrigin.x = newX;
+            }
+            mScrollToDate = null;
         }
 
         // Consider scroll offset.
@@ -1348,9 +1358,47 @@ public class WeekView extends View {
         date.set(Calendar.SECOND, 0);
 
         mRefreshEvents = true;
-        mCurrentOrigin.x = getXOriginForDate(date);
+        mScrollToDate = date;
 
         invalidate();
+    }
+
+    /**
+     * Show a specific day on the week view.
+     * @param dayOffset A positive or negative offset, in days, relative to the home date
+     */
+    public void goToDayOffset(int dayOffset) {
+        Calendar date = (Calendar)mHomeDate.clone();
+        date.add(Calendar.DAY_OF_YEAR, dayOffset);
+        goToDate(date);
+    }
+
+    /**
+     * Determine the leftmost day that is currently scrolled into view.
+     */
+    public Calendar getFirstVisibleDate() {
+        Calendar date = (Calendar)mHomeDate.clone();
+        date.add(Calendar.DAY_OF_YEAR, getFirstVisibleDayOffset());
+        return date;
+    }
+
+    /**
+     * Determine the leftmost day that is currently scrolled into view.
+     * @return A positive or negative offset, in days, relative to the home date
+     */
+    public int getFirstVisibleDayOffset() {
+        return (int) -(Math.round(mCurrentOrigin.x / (mWidthPerDay + mColumnGap)));
+    }
+
+    public int getVerticalScrollOffset() {
+        return (int)mCurrentOrigin.y;
+    }
+
+    public void setVerticalScrollOffset(int offset) {
+        if (offset >= getYMinLimit() && offset <= getYMaxLimit()) {
+            mCurrentOrigin.y = (float) offset;
+            invalidate();
+        }
     }
 
     /**
