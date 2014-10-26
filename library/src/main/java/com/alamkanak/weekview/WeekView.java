@@ -866,10 +866,11 @@ public class WeekView extends View {
     }
 
     private float getYMinLimit() {
-        return -(mHourHeight * getNumberOfVisibleHours()
+        return Math.min(0f,
+            -(mHourHeight * getNumberOfVisibleHours()
                 + mHeaderTextHeight
                 + mHeaderRowPadding * 2
-                - getHeight());
+                - getHeight()));
     }
 
     private float getYMaxLimit() {
