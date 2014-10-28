@@ -103,6 +103,8 @@ public class WeekView extends View {
     private Calendar mLastVisibleDay;
     private Calendar mScrollToDay = null;
     private double mScrollToHour = -1;
+    private boolean mHorizontalFlingEnabled = true;
+    private boolean mVerticalFlingEnabled = true;
 
     // Listeners.
     private EventClickListener mEventClickListener;
@@ -142,6 +144,11 @@ public class WeekView extends View {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            if ((mCurrentFlingDirection == Direction.HORIZONTAL && !mHorizontalFlingEnabled)
+                    || (mCurrentFlingDirection == Direction.VERTICAL && !mVerticalFlingEnabled)) {
+                return false;
+            }
+
             mScroller.forceFinished(true);
             mStickyScroller.forceFinished(true);
 
@@ -1314,6 +1321,23 @@ public class WeekView extends View {
     public void setXScrollingSpeed(float xScrollingSpeed) {
         this.mXScrollingSpeed = xScrollingSpeed;
     }
+
+    public boolean isHorizontalFlingEnabled() {
+        return mHorizontalFlingEnabled;
+    }
+
+    public void setHorizontalFlingEnabled(boolean enabled) {
+        mHorizontalFlingEnabled = enabled;
+    }
+
+    public boolean isVerticalFlingEnabled() {
+        return mVerticalFlingEnabled;
+    }
+
+    public void setVerticalFlingEnabled(boolean enabled) {
+        mVerticalFlingEnabled = enabled;
+    }
+
     /////////////////////////////////////////////////////////////////
     //
     //      Functions related to scrolling.
