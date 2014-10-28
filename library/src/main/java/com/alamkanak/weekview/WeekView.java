@@ -100,6 +100,8 @@ public class WeekView extends View {
     private int mEventMarginVertical = 0;
     private int mMinHour = 0;
     private int mMaxHour = 23;
+    private boolean mHorizontalFlingEnabled = true;
+    private boolean mVerticalFlingEnabled = true;
 
     // Formatters.
     private DayHeaderFormatter mDayHeaderFormatter;
@@ -157,6 +159,11 @@ public class WeekView extends View {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            if ((mCurrentFlingDirection == Direction.HORIZONTAL && !mHorizontalFlingEnabled)
+                    || (mCurrentFlingDirection == Direction.VERTICAL && !mVerticalFlingEnabled)) {
+                return false;
+            }
+
             mScroller.forceFinished(true);
             mStickyScroller.forceFinished(true);
 
@@ -1277,6 +1284,22 @@ public class WeekView extends View {
         mMaxDate = maxDate;
         mCurrentOrigin.x = 0;
         invalidate();
+    }
+
+    public boolean isHorizontalFlingEnabled() {
+        return mHorizontalFlingEnabled;
+    }
+
+    public void setHorizontalFlingEnabled(boolean enabled) {
+        mHorizontalFlingEnabled = enabled;
+    }
+
+    public boolean isVerticalFlingEnabled() {
+        return mVerticalFlingEnabled;
+    }
+
+    public void setVerticalFlingEnabled(boolean enabled) {
+        mVerticalFlingEnabled = enabled;
     }
 
     public DayHeaderFormatter getDayHeaderFormatter() {
