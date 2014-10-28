@@ -1315,9 +1315,9 @@ public class WeekView extends View {
         if (mScroller.computeScrollOffset()) {
             if (Math.abs(mScroller.getFinalX() - mScroller.getCurrX()) < mWidthPerDay + mColumnGap && Math.abs(mScroller.getFinalX() - mScroller.getStartX()) != 0) {
                 mScroller.forceFinished(true);
-                float leftDays = Math.round(mScroller.getFinalX() / (mWidthPerDay + mColumnGap));
-                int nearestOrigin = (int) (mScroller.getCurrX() - leftDays * (mWidthPerDay+mColumnGap));
-                mStickyScroller.startScroll(mScroller.getCurrX(), 0, - nearestOrigin, 0);
+                float leftDays = Math.round(mCurrentOrigin.x / (mWidthPerDay + mColumnGap));
+                int nearestOrigin = (int) (mCurrentOrigin.x - leftDays * (mWidthPerDay+mColumnGap));
+                mStickyScroller.startScroll((int) mCurrentOrigin.x, 0, - nearestOrigin, 0);
                 ViewCompat.postInvalidateOnAnimation(WeekView.this);
             }
             else {
