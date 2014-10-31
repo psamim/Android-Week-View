@@ -1418,10 +1418,34 @@ public class WeekView extends View {
     }
 
     public void setVerticalScrollOffset(int offset) {
-        if (offset >= getYMinLimit() && offset <= getYMaxLimit()) {
-            mCurrentOrigin.y = (float) offset;
-            invalidate();
-        }
+        float yMin = getYMinLimit(), yMax = getYMaxLimit();
+        if (offset < yMin)
+            offset = (int)yMin;
+        if (offset > yMax)
+            offset = (int)yMax;
+
+        mCurrentOrigin.y = (float) offset;
+        invalidate();
+    }
+
+    /**
+     * Find the scroll offset that would position the given time at the top of the view.
+     *
+     * @param hour Hour of day value (0-23)
+     * @param minute Minute value (0-59)
+     * @return The Y scroll offset in pixels
+     */
+    public int getVerticalScrollOffsetForTime(int hour, int minute)
+    {
+        int offsetMins = (hour*60 + minute) - (mMinHour*60);
+        int totalMins = (getNumberOfVisibleHours()*60);
+        float fraction = (float)offsetMins / (float)totalMins;
+
+        return -(int)(
+            (mHourHeight * (float)getNumberOfVisibleHours() * fraction)
+                + mTimeTextHeight/2
+                + mEventMarginVertical
+        );
     }
 
     /**
