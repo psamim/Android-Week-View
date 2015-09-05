@@ -545,8 +545,8 @@ public class WeekView extends View {
                 day.add(Calendar.DATE, dayNumber - 1);
                 float pixelsFromZero = y - mCurrentOrigin.y - mHeaderTextHeight
                         - mHeaderRowPadding * 2 - mTimeTextHeight/2 - mHeaderMarginBottom;
-                int hour = (int)(pixelsFromZero / mHourHeight);
-                int minute = (int) (60 * (pixelsFromZero - hour * mHourHeight) / mHourHeight);
+                int hour = (int)(pixelsFromZero / mHourHeight) + mMinHour;
+                int minute = (int) (60 * (pixelsFromZero - (hour-mMinHour) * mHourHeight) / mHourHeight);
                 day.add(Calendar.HOUR, hour);
                 day.set(Calendar.MINUTE, minute);
                 return day;
