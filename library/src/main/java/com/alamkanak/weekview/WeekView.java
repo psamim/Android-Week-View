@@ -112,6 +112,7 @@ public class WeekView extends View {
     private EmptyViewLongPressListener mEmptyViewLongPressListener;
     private DateTimeInterpreter mDateTimeInterpreter;
     private ScrollListener mScrollListener;
+    private EventRenderer mEventRenderer;
 
     private final GestureDetector.SimpleOnGestureListener mGestureListener = new GestureDetector.SimpleOnGestureListener() {
 
@@ -541,43 +542,45 @@ public class WeekView extends View {
      * @param canvas The canvas to draw upon.
      */
     private void drawEvents(Calendar date, float startFromPixel, Canvas canvas) {
+        EventRenderer eventRenderer = getEventRenderer();
+
+        // Define the area where events are shown
+        RectF drawingBounds = new RectF(
+            mHeaderColumnWidth,
+            mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight / 2,
+            getWidth(),
+            getHeight()
+        );
+
         if (mEventRects != null && mEventRects.size() > 0) {
             for (int i = 0; i < mEventRects.size(); i++) {
                 if (isSameDay(mEventRects.get(i).event.getStartTime(), date)) {
 
                     // Calculate top.
                     float top = mHourHeight * 24 * mEventRects.get(i).top / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 + mEventMarginVertical;
-                    float originalTop = top;
-                    if (top < mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2)
-                        top = mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2;
 
                     // Calculate bottom.
                     float bottom = mEventRects.get(i).bottom;
                     bottom = mHourHeight * 24 * bottom / 1440 + mCurrentOrigin.y + mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 - mEventMarginVertical;
 
-                    // Calculate left and right.
+                    // Calculate left
                     float left = startFromPixel + mEventRects.get(i).left * mWidthPerDay;
                     if (left < startFromPixel)
                         left += mOverlappingEventGap;
-                    float originalLeft = left;
+
+                    // Calculate right
                     float right = left + mEventRects.get(i).width * mWidthPerDay;
                     if (right < startFromPixel + mWidthPerDay)
                         right -= mOverlappingEventGap;
-                    if (left < mHeaderColumnWidth) left = mHeaderColumnWidth;
 
-                    // Draw the event and the event name on top of it.
-                    RectF eventRectF = new RectF(left, top, right, bottom);
-                    if (bottom > mHeaderTextHeight + mHeaderRowPadding * 2 + mHeaderMarginBottom + mTimeTextHeight/2 && left < right &&
-                            eventRectF.right > mHeaderColumnWidth &&
-                            eventRectF.left < getWidth() &&
-                            eventRectF.bottom > mHeaderTextHeight + mHeaderRowPadding * 2 + mTimeTextHeight / 2 + mHeaderMarginBottom &&
-                            eventRectF.top < getHeight() &&
-                            left < right
-                            ) {
-                        mEventRects.get(i).rectF = eventRectF;
-                        mEventBackgroundPaint.setColor(mEventRects.get(i).event.getColor() == 0 ? mDefaultEventColor : mEventRects.get(i).event.getColor());
-                        canvas.drawRect(mEventRects.get(i).rectF, mEventBackgroundPaint);
-                        drawText(mEventRects.get(i).event.getName(), mEventRects.get(i).rectF, canvas, originalTop, originalLeft);
+                    RectF eventRect = new RectF(left, top, right, bottom);
+
+                    // If any part of the event is visible, draw the event
+                    if (eventRect.left < eventRect.right && RectF.intersects(eventRect, drawingBounds)) {
+                        mEventRects.get(i).rectF = eventRect;
+                        RectF visibleRect = new RectF(eventRect);
+                        visibleRect.intersect(drawingBounds);
+                        eventRenderer.renderEvent(mEventRects.get(i).event, canvas, eventRect, visibleRect);
                     }
                     else
                         mEventRects.get(i).rectF = null;
@@ -1029,6 +1032,32 @@ public class WeekView extends View {
      */
     public void setDateTimeInterpreter(DateTimeInterpreter dateTimeInterpreter){
         this.mDateTimeInterpreter = dateTimeInterpreter;
+    }
+
+    /**
+     * Get the event renderer which is responsible for drawing events into the view.
+     */
+    public EventRenderer getEventRenderer() {
+        if (mEventRenderer == null) {
+            mEventRenderer = new EventRenderer() {
+                @Override
+                public void renderEvent(WeekViewEvent event, Canvas canvas, RectF rect, RectF visibleRect) {
+                    mEventBackgroundPaint.setColor(event.getColor() == 0 ? mDefaultEventColor : event.getColor());
+                    canvas.drawRect(visibleRect, mEventBackgroundPaint);
+                    drawText(event.getName(), rect, canvas, rect.top, rect.left);
+                }
+            };
+        }
+        return mEventRenderer;
+    }
+
+    /**
+     * Set a custom event renderer which will override the default drawing behaviour when displaying
+     * events in the view.
+     * @param eventRenderer The new event renderer. Pass null to restore the default renderer.
+     */
+    public void setEventRenderer(EventRenderer eventRenderer) {
+        this.mEventRenderer = eventRenderer;
     }
 
 
