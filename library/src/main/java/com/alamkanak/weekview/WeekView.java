@@ -108,6 +108,7 @@ public class WeekView extends View {
     private double mScrollToHour = -1;
     private boolean mHorizontalFlingEnabled = true;
     private boolean mVerticalFlingEnabled = true;
+    private float mSeparatorIntervalHour;
 
     // Listeners.
     private EventClickListener mEventClickListener;
@@ -386,12 +387,15 @@ public class WeekView extends View {
         // Draw the background color for the header column.
         canvas.drawRect(0, mHeaderTextHeight + mHeaderRowPadding * 2, mHeaderColumnWidth, getHeight(), mHeaderColumnBackgroundPaint);
 
-        for (int i = mMinHour; i <= mMaxHour; i++) {
-            int hourOffset = i - mMinHour;
+        int maxRange = (int) (mMaxHour * (1 / mSeparatorIntervalHour));
+        int minRange = (int) (mMinHour * (1 / mSeparatorIntervalHour));
+        for (int i = minRange; i <= maxRange; i++) {
+            float hour = i * mSeparatorIntervalHour;
+            float hourOffset = hour - mMinHour;
             float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourOffset + mHeaderMarginBottom;
 
             // Draw the text if its y position is not outside of the visible area. The pivot point of the text is the point at the bottom-right corner.
-            String time = getDateTimeInterpreter().interpretTime(i);
+            String time = getDateTimeInterpreter().interpretTime(hour);
             if (time == null)
                 throw new IllegalStateException("A DateTimeInterpreter must not return null time");
             if (top < getHeight()) canvas.drawText(time, mTimeTextWidth + mHeaderColumnPadding, top + mTimeTextHeight, mTimeTextPaint);
@@ -486,9 +490,9 @@ public class WeekView extends View {
 
             // Prepare the separator lines for hours.
             int i = 0;
-            int range = getNumberOfVisibleHours();
+            int range = (int) (getNumberOfVisibleHours() * (1 / mSeparatorIntervalHour));
             for (int hourNumber = 0; hourNumber < range; hourNumber++) {
-                float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourNumber + mTimeTextHeight/2 + mHeaderMarginBottom;
+                float top = mHeaderTextHeight + mHeaderRowPadding * 2 + mCurrentOrigin.y + mHourHeight * hourNumber * mSeparatorIntervalHour + mTimeTextHeight/2 + mHeaderMarginBottom;
                 if (top > mHeaderTextHeight + mHeaderRowPadding * 2 + mTimeTextHeight/2 + mHeaderMarginBottom - mHourSeparatorHeight && top < getHeight() && startPixel + mWidthPerDay - start > 0){
                     hourLines[i * 4] = start;
                     hourLines[i * 4 + 1] = top;
@@ -1155,7 +1159,7 @@ public class WeekView extends View {
                 }
 
                 @Override
-                public String interpretTime(int hour) {
+                public String interpretTime(float hour) {
                     String amPm;
                     if (hour >= 0 && hour < 12) amPm = "AM";
                     else amPm = "PM";
@@ -1602,6 +1606,34 @@ public class WeekView extends View {
         invalidate();
     }
 
+    public float getSeparatorIntervalHour() {
+        return mSeparatorIntervalHour;
+    }
+
+    /**
+     * Sets the interval between separator lines in hours
+     * @param mSeparatorIntervalHour
+     */
+    public void setSeparatorIntervalHour(float mSeparatorIntervalHour) {
+        if (mSeparatorIntervalHour > 24) {
+            throw new IllegalArgumentException("SeparatorIntervalHour cannot be greater than 24");
+        }
+        this.mSeparatorIntervalHour = mSeparatorIntervalHour;
+        invalidate();
+    }
+
+    /**
+     * Sets the typeface for all the texts used
+     * @param typeface
+     */
+    public void setTypeface(Typeface typeface) {
+        mEventTextPaint.setTypeface(typeface);
+        mHeaderTextPaint.setTypeface(typeface);
+        mTimeTextPaint.setTypeface(typeface);
+        mTodayHeaderTextPaint.setTypeface(typeface);
+        invalidate();
+    }
+
     /////////////////////////////////////////////////////////////////
     //
     //      Functions related to scrolling.
@@ -1821,5 +1853,4 @@ public class WeekView extends View {
     private boolean isSameDay(Calendar dayOne, Calendar dayTwo) {
         return dayOne.get(Calendar.YEAR) == dayTwo.get(Calendar.YEAR) && dayOne.get(Calendar.DAY_OF_YEAR) == dayTwo.get(Calendar.DAY_OF_YEAR);
     }
-
 }
